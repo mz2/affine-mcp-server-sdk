@@ -9,16 +9,30 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
   cancel-in-progress: true
 
-# Validate the build for each architecture on a native runner. `sdkcraft pack`
-# builds the platform whose build-on matches the runner, so the amd64 job
-# builds amd64 and the arm64 job builds arm64.
 jobs:
-  amd64:
-    uses: canonical/sdkcraft-actions/.github/workflows/build.yml@main
-
-  arm64:
-    uses: canonical/sdkcraft-actions/.github/workflows/build.yml@main
-    with:
-      # arm64 self-hosted runner (Canonical pool, same label canonical/sdkcraft
-      # uses). amd64 above uses the action's default x64 pool.
-      runs-on: '["self-hosted-linux-arm64-noble-xlarge"]'
+  # GitHub-hosted runners (amd64 + arm64; arm64 hosted runners are free for
+  # public repos). The SDK bundles a Node.js binary matching the build host,
+  # so each arch is packed natively on a runner of its own architecture.
+  # Fresh LXD + sdkcraft per run, managed-mode pack.
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runs-on: ubuntu-latest
+          - arch: arm64
+            runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install LXD
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v1
+        with:
+          channel: 6/stable
+      - name: Install sdkcraft
+        run: sudo snap install sdkcraft --classic
+      - name: Pack SDK for ${{ matrix.arch }}
+        run: sdkcraft --verbose pack --build-for ${{ matrix.arch }}
