@@ -69,22 +69,35 @@ workshop shell
 affine-mcp snippet claude
 ```
 
-### Run as an HTTP server (optional)
+### Run as an HTTP server (for sibling SDKs / host tools)
 
-The server can instead listen for MCP requests over HTTP on port 3000
-(`/mcp`, with `/healthz` and `/readyz` health endpoints). Set an auth token and
-start it:
+For consumers that connect over HTTP rather than spawning the CLI, the SDK runs
+the server as a **managed systemd user service** — you do not start it by hand.
+On launch it listens for MCP requests on port 3000 (`/mcp`, with `/healthz` and
+`/readyz` health endpoints), with bearer authentication, and is exposed on the
+`affine-mcp-http` tunnel slot.
+
+`setup-project` generates a strong `AFFINE_MCP_HTTP_TOKEN` on first launch and
+stores it in `~/.config/affine-mcp/.env` (mode 600, in the persisted config
+mount). Read it to hand to clients, and authenticate the server to AFFiNE:
 
 ```bash
 workshop shell
-MCP_TRANSPORT=http \
-  AFFINE_MCP_AUTH_MODE=bearer \
-  AFFINE_MCP_HTTP_TOKEN=your-strong-secret \
-  affine-mcp
+affine-mcp login                                   # AFFiNE credentials
+systemctl --user restart affine-mcp-http           # pick up the new login
+grep AFFINE_MCP_HTTP_TOKEN ~/.config/affine-mcp/.env   # the bearer clients use
+systemctl --user status affine-mcp-http            # confirm it's serving :3000
 ```
 
-Host tools and other SDKs can reach this server through the `affine-mcp-http`
-tunnel slot on port 3000.
+The health check stays `waiting` until the server answers on :3000. A consumer
+points its MCP client at `http://localhost:3000/mcp` with
+`Authorization: Bearer <token>` — see the hermes-agent SDK's
+`examples/workshop.with-mcp.yaml` for a complete wiring. To override the
+token, edit `~/.config/affine-mcp/.env` and restart the service.
+
+> Prefer stdio when an AI client can spawn `affine-mcp` itself in the same
+> workshop — there's no network listener and no bearer token to manage. Reserve
+> the HTTP service for cross-workshop or host-tool consumers.
 
 ### Verify from the command line
 
@@ -114,8 +127,9 @@ affine-mcp doctor
 
 - Interface: `tunnel`
 - Endpoint: `3000`
-- Purpose: Exposes the MCP server's HTTP endpoint (when run with
-  `MCP_TRANSPORT=http`) for use by other SDKs or host tools.
+- Purpose: Exposes the MCP server's HTTP endpoint, served by the managed
+  `affine-mcp-http` systemd user service, for use by other SDKs or host tools.
+  Bearer-authenticated; the token is in `~/.config/affine-mcp/.env`.
 
 ---
 

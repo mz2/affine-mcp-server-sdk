@@ -4,10 +4,19 @@ adopt-info: affine-mcp
 summary: AFFiNE MCP server - expose AFFiNE workspaces and docs to AI assistants
 description: |
   This SDK provides the AFFiNE MCP server, which exposes AFFiNE workspaces and
-  documents to AI assistants over stdio (default) or HTTP. It ships the
-  `affine-mcp` CLI with a bundled Node.js runtime and persists credentials and
-  configuration between workshop updates. The server connects to AFFiNE Cloud
-  or a self-hosted instance via its GraphQL and WebSocket APIs.
+  documents to AI assistants over stdio or HTTP. It ships the `affine-mcp` CLI
+  with a bundled Node.js runtime and persists credentials and configuration
+  between workshop updates. The server connects to AFFiNE Cloud or a
+  self-hosted instance via its GraphQL and WebSocket APIs.
+
+  For HTTP consumers (an AI agent in a sibling workshop, e.g. the hermes-agent
+  SDK), the SDK runs the server as the `affine-mcp-http` systemd user service
+  and exposes it on the `affine-mcp-http` tunnel slot (port 3000, bearer auth).
+  setup-project generates a strong AFFINE_MCP_HTTP_TOKEN on first launch; the
+  health check stays `waiting` until the server answers on :3000 (it needs an
+  `affine-mcp login`, or AFFINE_BASE_URL/AFFINE_API_TOKEN in the config `.env`).
+  For an AI client that spawns the server itself over stdio, ignore the service
+  and slot and invoke the `affine-mcp` CLI directly.
 license: MIT
 build-base: ubuntu@24.04
 platforms:
@@ -43,3 +52,11 @@ parts:
       curl -fLO "https://registry.npmjs.org/affine-mcp-server/-/affine-mcp-server-${VERSION}.tgz"
       tar -xzf "affine-mcp-server-${VERSION}.tgz" --strip-components=1 -C "$CRAFT_PART_SRC"
       rm "affine-mcp-server-${VERSION}.tgz"
+
+  # Bundled systemd unit for the HTTP transport. Dumped into the SDK payload
+  # (lands at $SDK/affine-mcp-http.service) so setup-project can install it
+  # under ~/.config/systemd/user/ after rewriting its ExecStart path.
+  services:
+    plugin: dump
+    source: services
+    source-type: local
