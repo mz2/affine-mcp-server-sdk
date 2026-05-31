@@ -1,12 +1,24 @@
 #!/usr/bin/bash
+# check-health: report SDK status to Workshop.
+#
+# (1) the affine-mcp binary is installed, (2) the HTTP service unit is active,
+# (3) the server actually accepts connections on :3000. A not-yet-serving
+# server is `waiting` (commonly just missing AFFiNE credentials), so the
+# workshop surfaces the right remediation rather than a hard error.
 
 if [[ ! -x "${SDK}/bin/affine-mcp" ]]; then
 	workshopctl set-health --code="affine-mcp-not-installed" error "AFFiNE MCP server not installed."
 	exit 0
 fi
 
-if ! sudo -u workshop --login which affine-mcp >/dev/null 2>&1; then
-	workshopctl set-health --code="affine-mcp-not-in-path" error "affine-mcp not available on the \$PATH."
+if ! sudo -u workshop --login systemctl --user is-active --quiet affine-mcp-http.service; then
+	workshopctl set-health --code="affine-mcp-http-inactive" waiting "affine-mcp-http service not active — run 'affine-mcp login' (or set AFFINE_BASE_URL/AFFINE_API_TOKEN in ~/.config/affine-mcp/.env), then 'systemctl --user restart affine-mcp-http'"
+	exit 0
+fi
+
+# Confirm the server accepts TCP connections on its port (no curl dependency).
+if ! sudo -u workshop --login bash -c 'exec 3<>/dev/tcp/localhost/3000' 2>/dev/null; then
+	workshopctl set-health --code="affine-mcp-http-unreachable" waiting "affine-mcp-http is active but not yet accepting connections on :3000 — check 'journalctl --user -u affine-mcp-http'"
 	exit 0
 fi
 

@@ -1,0 +1,23 @@
+[Unit]
+Description=AFFiNE MCP server (HTTP transport)
+Documentation=https://github.com/DAWNCR0W/affine-mcp-server
+After=default.target
+
+[Service]
+Type=simple
+# The HTTP bearer token (AFFINE_MCP_HTTP_TOKEN) lives in this file, in the
+# mode-600 affine-mcp-config mount; setup-project generates one on first launch.
+# The same file may also hold AFFINE_BASE_URL / AFFINE_API_TOKEN as an
+# alternative to `affine-mcp login` (which stores AFFiNE credentials in the
+# adjacent `config` file that the CLI reads on its own).
+EnvironmentFile=%h/.config/affine-mcp/.env
+Environment=MCP_TRANSPORT=http
+Environment=AFFINE_MCP_AUTH_MODE=bearer
+# systemd user units do not source /etc/profile.d, so setup-project rewrites
+# this placeholder to the SDK's bundled binary at install time.
+ExecStart=@@AFFINE_MCP_BIN@@
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

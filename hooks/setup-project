@@ -1,8 +1,36 @@
 #!/usr/bin/bash
-set -e
+# setup-project: per-workshop user setup. Runs as the workshop user after
+# setup-base. Idempotent — safe to re-run on every refresh.
+set -euo pipefail
 
-# Credentials written by `affine-mcp login` live here (config file is mode 600).
-# Ensure the directory exists with restrictive permissions; it is mounted to the
-# host via the affine-mcp-config plug so it survives workshop updates.
-mkdir -p /home/workshop/.config/affine-mcp
-chmod 700 /home/workshop/.config/affine-mcp
+CONFIG_DIR="$HOME/.config/affine-mcp"
+ENV_FILE="$CONFIG_DIR/.env"
+UNIT_DIR="$HOME/.config/systemd/user"
+
+# Credentials written by `affine-mcp login` live in $CONFIG_DIR/config (mode
+# 600). The directory is the affine-mcp-config mount, so it survives updates.
+mkdir -p "$CONFIG_DIR"
+chmod 700 "$CONFIG_DIR"
+
+# The HTTP service reads its environment from .env: the bearer token always,
+# and optionally AFFINE_BASE_URL/AFFINE_API_TOKEN as an alternative to
+# `affine-mcp login`. Generate a strong token once so no operator has to invent
+# or type one; it persists in the mounted config dir across refreshes.
+touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+if ! grep -q '^AFFINE_MCP_HTTP_TOKEN=' "$ENV_FILE"; then
+    printf 'AFFINE_MCP_HTTP_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "$ENV_FILE"
+fi
+
+# Install the HTTP service unit. systemd user units do not source
+# /etc/profile.d, so rewrite the ExecStart placeholder to the bundled binary's
+# absolute path (stable for the life of the workshop; re-applied on refresh).
+mkdir -p "$UNIT_DIR"
+sed "s|@@AFFINE_MCP_BIN@@|${SDK}/bin/affine-mcp|g" \
+    "${SDK}/affine-mcp-http.service" > "$UNIT_DIR/affine-mcp-http.service"
+
+systemctl --user daemon-reload
+# Start it now. Until `affine-mcp login` (or AFFINE_* vars in .env) provide
+# AFFiNE credentials it may restart while it cannot reach AFFiNE; check-health
+# reports `waiting` until http://localhost:3000 answers.
+systemctl --user enable --now affine-mcp-http.service || true
