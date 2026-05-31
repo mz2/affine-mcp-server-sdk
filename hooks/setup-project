@@ -26,7 +26,8 @@ fi
 # /etc/profile.d, so rewrite the ExecStart placeholder to the bundled binary's
 # absolute path (stable for the life of the workshop; re-applied on refresh).
 mkdir -p "$UNIT_DIR"
-sed "s|@@AFFINE_MCP_BIN@@|${SDK}/bin/affine-mcp|g" \
+sed -e "s|@@AFFINE_MCP_BIN@@|${SDK}/bin/affine-mcp|g" \
+    -e "s|@@AFFINE_MCP_BINDIR@@|${SDK}/bin|g" \
     "${SDK}/affine-mcp-http.service" > "$UNIT_DIR/affine-mcp-http.service"
 
 systemctl --user daemon-reload
