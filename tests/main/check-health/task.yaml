@@ -1,0 +1,33 @@
+summary: affine-mcp installs, is healthy, on PATH, and persists its config dir
+
+# A fresh launch must reach "ready" (check-health reports okay), expose the
+# affine-mcp CLI on PATH at the packaged version, and create the credentials
+# directory with mode 700. A refresh re-runs the hooks and must stay healthy.
+
+prepare: |
+  envsubst '${BASE}' <workshop.yaml.in >workshop.yaml
+  workshop launch
+
+restore: |
+  workshop remove || true
+
+execute: |
+  # Workshop reached ready and the SDK did not report a health error.
+  workshop info test-affine-mcp | MATCH "status:\s+ready"
+  workshop info test-affine-mcp | NOMATCH "error"
+
+  # CLI is on PATH and reports the packaged version.
+  workshop exec test-affine-mcp -- bash -lc 'command -v affine-mcp'
+  workshop exec test-affine-mcp -- bash -lc 'affine-mcp --version' | MATCH "$(cat VERSION)"
+
+  # Credentials directory exists with restrictive permissions (mount plug target).
+  test "$(workshop exec test-affine-mcp -- bash -lc 'stat -c %a ~/.config/affine-mcp')" = "700"
+
+  # Refresh re-runs the hooks; the SDK must stay healthy.
+  workshop refresh
+  workshop info test-affine-mcp | MATCH "status:\s+ready"
+  workshop info test-affine-mcp | NOMATCH "error"
+
+debug: |
+  workshop tasks || true
+  workshop info test-affine-mcp || true
