@@ -1,0 +1,45 @@
+name: affine-mcp-server
+title: AFFiNE MCP Server SDK
+adopt-info: affine-mcp
+summary: AFFiNE MCP server - expose AFFiNE workspaces and docs to AI assistants
+description: |
+  This SDK provides the AFFiNE MCP server, which exposes AFFiNE workspaces and
+  documents to AI assistants over stdio (default) or HTTP. It ships the
+  `affine-mcp` CLI with a bundled Node.js runtime and persists credentials and
+  configuration between workshop updates. The server connects to AFFiNE Cloud
+  or a self-hosted instance via its GraphQL and WebSocket APIs.
+license: MIT
+build-base: ubuntu@24.04
+platforms:
+  # Build each arch natively: npm-include-node downloads node for the build
+  # host, so cross-building would bundle the wrong-arch node.
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+  arm64:
+    build-on: [arm64]
+    build-for: [arm64]
+
+plugs:
+  affine-mcp-config:
+    interface: mount
+    workshop-target: /home/workshop/.config/affine-mcp
+    mode: 0o700
+
+slots:
+  affine-mcp-http:
+    interface: tunnel
+    endpoint: 3000
+
+parts:
+  affine-mcp:
+    plugin: npm
+    source: .
+    npm-include-node: true
+    npm-node-version: 22.22.1
+    override-pull: |
+      VERSION=$(cat "$CRAFT_PROJECT_DIR/VERSION")
+      craftctl set version="$VERSION"
+      curl -fLO "https://registry.npmjs.org/affine-mcp-server/-/affine-mcp-server-${VERSION}.tgz"
+      tar -xzf "affine-mcp-server-${VERSION}.tgz" --strip-components=1 -C "$CRAFT_PART_SRC"
+      rm "affine-mcp-server-${VERSION}.tgz"

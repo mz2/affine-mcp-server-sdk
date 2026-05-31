@@ -1,0 +1,14 @@
+/bin/
+
+.claude/
+workshop.yaml
+.workshop.lock
+
+.ipynb_checkpoints/
+.vscode/
+*.code-workspace
+
+*.out
+*.so
+*.tar.xz
+*.sdk

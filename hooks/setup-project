@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+set -e
+
+# Credentials written by `affine-mcp login` live here (config file is mode 600).
+# Ensure the directory exists with restrictive permissions; it is mounted to the
+# host via the affine-mcp-config plug so it survives workshop updates.
+mkdir -p /home/workshop/.config/affine-mcp
+chmod 700 /home/workshop/.config/affine-mcp

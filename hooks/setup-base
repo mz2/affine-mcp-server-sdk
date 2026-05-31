@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+set -e
+
+cat <<EOF >/etc/profile.d/affine-mcp.sh
+export PATH="${SDK}/bin:\$PATH"
+EOF

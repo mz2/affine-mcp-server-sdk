@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["custom.regex"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^VERSION$/"],
+      "matchStrings": ["(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "affine-mcp-server",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "baseBranchPatterns": ["latest"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["affine-mcp-server"],
+      "matchBaseBranches": ["latest"]
+    }
+  ]
+}

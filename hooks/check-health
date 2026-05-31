@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+
+if [[ ! -x "${SDK}/bin/affine-mcp" ]]; then
+	workshopctl set-health --code="affine-mcp-not-installed" error "AFFiNE MCP server not installed."
+	exit 0
+fi
+
+if ! sudo -u workshop --login which affine-mcp >/dev/null 2>&1; then
+	workshopctl set-health --code="affine-mcp-not-in-path" error "affine-mcp not available on the \$PATH."
+	exit 0
+fi
+
+workshopctl set-health okay
