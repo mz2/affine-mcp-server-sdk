@@ -1,0 +1,39 @@
+name: Test SDK
+
+on:
+  pull_request:
+    branches:
+      - latest
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # Run the spread suite (tests/) inside a workshop. tests/spread.yaml uses an
+  # LXD VM (vm: true), which needs KVM — available on GitHub-hosted Linux
+  # runners. The suite is self-contained: it asserts the affine-mcp CLI,
+  # health, PATH, and config-dir permissions. No AFFiNE server or credentials
+  # are required. sdkcraft test side-loads a local Workshop snap, so we fetch
+  # the public snap from the store first.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install LXD
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v1
+        with:
+          channel: 6/stable
+
+      - name: Install sdkcraft
+        run: sudo snap install sdkcraft --classic
+
+      - name: Fetch Workshop snap for the test environment
+        run: cd tests && snap download workshop
+
+      - name: Run spread tests
+        run: sdkcraft --verbose test
