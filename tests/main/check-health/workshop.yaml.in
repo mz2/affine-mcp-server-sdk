@@ -1,0 +1,4 @@
+name: test-affine-mcp
+base: ${BASE}
+sdks:
+  - name: try-affine-mcp-server
