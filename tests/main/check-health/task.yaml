@@ -1,8 +1,10 @@
-summary: affine-mcp installs, is healthy, on PATH, and persists its config dir
+summary: affine-mcp installs, runs the HTTP service, and reports healthy
 
-# A fresh launch must reach "ready" (check-health reports okay), expose the
-# affine-mcp CLI on PATH at the packaged version, and create the credentials
-# directory with mode 700. A refresh re-runs the hooks and must stay healthy.
+# A fresh launch (no AFFiNE login) must reach "ready": setup-project generates
+# a bearer token, installs and starts the affine-mcp-http systemd user service,
+# and the server answers on :3000 — so check-health reports okay. This needs no
+# AFFiNE server: the server binds :3000 and serves /healthz before any login.
+# A refresh re-runs the hooks and must stay healthy.
 
 prepare: |
   envsubst '${BASE}' <workshop.yaml.in >workshop.yaml
@@ -20,14 +22,24 @@ execute: |
   workshop exec test-affine-mcp -- bash -lc 'command -v affine-mcp'
   workshop exec test-affine-mcp -- bash -lc 'affine-mcp --version' | MATCH "$(cat VERSION)"
 
-  # Credentials directory exists with restrictive permissions (mount plug target).
+  # Config dir (mount plug target) and generated .env have restrictive perms.
   test "$(workshop exec test-affine-mcp -- bash -lc 'stat -c %a ~/.config/affine-mcp')" = "700"
+  test "$(workshop exec test-affine-mcp -- bash -lc 'stat -c %a ~/.config/affine-mcp/.env')" = "600"
 
-  # Refresh re-runs the hooks; the SDK must stay healthy.
+  # setup-project generated exactly one bearer token in the persisted .env.
+  test "$(workshop exec test-affine-mcp -- bash -lc 'grep -c "^AFFINE_MCP_HTTP_TOKEN=." ~/.config/affine-mcp/.env')" = "1"
+
+  # The HTTP transport runs as a managed systemd user service ...
+  workshop exec test-affine-mcp -- bash -lc 'systemctl --user is-active --quiet affine-mcp-http.service'
+  # ... and answers on :3000 without any AFFiNE login.
+  workshop exec test-affine-mcp -- bash -lc '(exec 3<>/dev/tcp/localhost/3000; printf "GET /healthz HTTP/1.0\r\n\r\n" >&3; head -1 <&3)' | MATCH "200 OK"
+
+  # Refresh re-runs the hooks; the SDK must stay healthy and not mint a 2nd token.
   workshop refresh
   workshop info test-affine-mcp | MATCH "status:\s+ready"
-  workshop info test-affine-mcp | NOMATCH "error"
+  test "$(workshop exec test-affine-mcp -- bash -lc 'grep -c "^AFFINE_MCP_HTTP_TOKEN=." ~/.config/affine-mcp/.env')" = "1"
 
 debug: |
   workshop tasks || true
   workshop info test-affine-mcp || true
+  workshop exec test-affine-mcp -- bash -lc 'systemctl --user status affine-mcp-http.service --no-pager -l; journalctl --user -u affine-mcp-http.service --no-pager -n 30' || true

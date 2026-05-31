@@ -13,8 +13,11 @@ Type=simple
 EnvironmentFile=%h/.config/affine-mcp/.env
 Environment=MCP_TRANSPORT=http
 Environment=AFFINE_MCP_AUTH_MODE=bearer
-# systemd user units do not source /etc/profile.d, so setup-project rewrites
-# this placeholder to the SDK's bundled binary at install time.
+# systemd user units start with a minimal PATH and do not source
+# /etc/profile.d, so the affine-mcp launcher's `#!/usr/bin/env node` shebang
+# cannot find the bundled Node.js runtime. setup-project rewrites both
+# placeholders below to the SDK's bin directory and binary at install time.
+Environment=PATH=@@AFFINE_MCP_BINDIR@@:/usr/bin:/bin
 ExecStart=@@AFFINE_MCP_BIN@@
 Restart=on-failure
 RestartSec=3
