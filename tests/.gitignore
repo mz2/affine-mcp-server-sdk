@@ -1,4 +1,5 @@
-# Local Workshop snap side-loaded by `sdkcraft test` (Workshop is not yet in the store)
+# Workshop snap that `sdkcraft test` side-loads into the test environment.
+# Workshop is on the snap store, so fetch it with `snap download workshop`.
 *.snap
 *.assert
 .spread-reuse.yaml
